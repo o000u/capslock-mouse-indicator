@@ -1,0 +1,56 @@
+name: Build and Release macOS App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install pynput pyinstaller
+    
+    - name: Build macOS app
+      run: |
+        pyinstaller \
+          --onefile \
+          --windowed \
+          --name "Caps Lock Indicator" \
+          --osx-bundle-identifier "com.capslock.indicator" \
+          capslock_indicator.py
+    
+    - name: Create DMG
+      run: |
+        mkdir -p dist_dmg
+        cp -r dist/"Caps Lock Indicator.app" dist_dmg/
+        hdiutil create -volname "Caps Lock Indicator" -srcfolder dist_dmg -ov -format UDZO dist/"Caps Lock Indicator.dmg"
+    
+    - name: Zip the app
+      run: |
+        cd dist
+        zip -r "Caps Lock Indicator.app.zip" "Caps Lock Indicator.app"
+        cd ..
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/Caps Lock Indicator.app.zip
+          dist/Caps Lock Indicator.dmg
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
